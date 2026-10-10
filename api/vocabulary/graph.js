@@ -20,7 +20,7 @@ export default async function (req, res) {
   );
 
   const relationResult = await db.query(
-    `SELECT r.id AS relation_id, r.relation_type, r.context, r.verification_status,
+    `SELECT r.id AS relation_id, r.relation_type, r.context, r.source_name AS relation_source_name, r.source_url AS relation_source_url, r.verification_status,
             e.id AS related_id, e.term AS related_term, e.entry_type AS related_type,
             e.ipa AS related_ipa, e.part_of_speech AS related_part_of_speech,
             e.definition_en AS related_definition, e.meaning_vi AS related_meaning_vi,
@@ -30,6 +30,7 @@ export default async function (req, res) {
        JOIN vocabulary_entries e
          ON e.id = CASE WHEN r.source_entry_id = $1 THEN r.target_entry_id ELSE r.source_entry_id END
       WHERE (r.source_entry_id = $1 OR r.target_entry_id = $1)
+        AND r.verification_status IN ('verified','approved')
         AND NOT (r.relation_type = 'related_phrase' AND (r.context ILIKE 'Topic association:%' OR r.context ILIKE 'Session topic association%'))
       ORDER BY CASE r.relation_type WHEN 'synonym' THEN 1 WHEN 'antonym' THEN 2 WHEN 'collocation' THEN 3 WHEN 'word_family' THEN 4 WHEN 'phrasal_verb' THEN 5 WHEN 'idiom' THEN 6 ELSE 7 END, e.term
       LIMIT 30`,

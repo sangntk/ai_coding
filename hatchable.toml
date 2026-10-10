@@ -7,3 +7,27 @@ providers = ["email"]
 [ai]
 required = true
 description = "AI feedback and vocabulary generation. Uses configured platform credit or a supported provider key."
+
+[db.tables.exercise_attempts]
+read = "own"
+write = "own"
+
+[db.tables.learning_sessions]
+read = "own"
+write = "own"
+
+[db.tables.profiles]
+read = "own"
+write = "own"
+
+[db.tables.user_vocabulary_progress]
+read = "own"
+write = "own"
+
+[db.tables.journal_entries]
+read = "own"
+write = "own"
+
+[db.tables.topic_recommendations]
+read = "own"
+write = "own"

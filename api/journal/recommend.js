@@ -27,7 +27,7 @@ export default async function (req, res) {
   if (text.length > 5000) return res.status(400).json({ error: 'Your journal entry must be 5,000 characters or fewer.' });
 
   const journal = await db.query(
-    'INSERT INTO journal_entries (user_id, journal_text) VALUES ($1,$2) RETURNING id, entry_date, created_at',
+    "INSERT INTO journal_entries (user_id,journal_text,entry_date) VALUES ($1,$2,(now() AT TIME ZONE 'Asia/Ho_Chi_Minh')::date) RETURNING id,entry_date,created_at",
     [userId, text]
   );
 

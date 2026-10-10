@@ -29,7 +29,8 @@ export default async function (req, res) {
        FROM vocabulary_relations r
        JOIN vocabulary_entries e
          ON e.id = CASE WHEN r.source_entry_id = $1 THEN r.target_entry_id ELSE r.source_entry_id END
-      WHERE r.source_entry_id = $1 OR r.target_entry_id = $1
+      WHERE (r.source_entry_id = $1 OR r.target_entry_id = $1)
+        AND NOT (r.relation_type = 'related_phrase' AND (r.context ILIKE 'Topic association:%' OR r.context ILIKE 'Session topic association%'))
       ORDER BY CASE r.relation_type WHEN 'synonym' THEN 1 WHEN 'antonym' THEN 2 WHEN 'collocation' THEN 3 WHEN 'word_family' THEN 4 WHEN 'phrasal_verb' THEN 5 WHEN 'idiom' THEN 6 ELSE 7 END, e.term
       LIMIT 30`,
     [root.id]

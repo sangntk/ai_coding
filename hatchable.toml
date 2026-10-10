@@ -1,0 +1,9 @@
+name = "English Learning Assistant"
+
+[auth]
+enabled = true
+providers = ["email"]
+
+[ai]
+required = true
+description = "AI feedback and vocabulary generation. Uses configured platform credit or a supported provider key."

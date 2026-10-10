@@ -1,0 +1,5 @@
+INSERT INTO topics (id, name, description, level, icon) VALUES ('daily-life', 'Daily Life & Routines', 'Talk about habits, routines, and everyday choices.', 'A1-B1', '☀') ON CONFLICT (id) DO NOTHING;
+INSERT INTO topics (id, name, description, level, icon) VALUES ('work-study', 'Work & Study', 'Describe your work, studies, goals, and challenges.', 'A2-B2', '✎') ON CONFLICT (id) DO NOTHING;
+INSERT INTO topics (id, name, description, level, icon) VALUES ('travel', 'Travel & Culture', 'Talk about trips, places, and cultural experiences.', 'A2-B2', '⌁') ON CONFLICT (id) DO NOTHING;
+INSERT INTO topics (id, name, description, level, icon) VALUES ('health-lifestyle', 'Health & Lifestyle', 'Discuss wellbeing, exercise, food, and daily habits.', 'A2-B2', '♡') ON CONFLICT (id) DO NOTHING;
+INSERT INTO topics (id, name, description, level, icon) VALUES ('environment', 'Environment', 'Explain environmental issues and everyday solutions.', 'B1-B2', '❋') ON CONFLICT (id) DO NOTHING;

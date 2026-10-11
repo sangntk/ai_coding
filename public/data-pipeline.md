@@ -8,7 +8,8 @@ This is the handoff specification for reusing the pipeline in Vibe Flow or anoth
 - The records cover **172,782 distinct normalized terms**.
 - Merged IPA lookups into those records: US source has 125,927 entries; UK source has 65,119 entries.
 - Promoted **34,335 new A1–B2 single-word candidates** into vocabulary_entries as draft. Existing vocabulary records were not overwritten during promotion.
-- Generated AI definitions, Vietnamese meanings and examples for 164 entries over two batches; a quality audit rejected 9 malformed or low-value candidates, leaving **155 enriched draft entries**; none are dictionary-verified.
+- Generated AI definitions, Vietnamese meanings and examples for 164 entries in the initial enrichment; a quality audit rejected 9 malformed or low-value candidates, leaving 155 retained drafts. A further **397 entries** were enriched in four 100-word batches (two batches ran concurrently; 3 malformed responses were left untouched for retry), bringing the retained core-enriched total to **552**. All AI content remains draft and is not dictionary-verified.
+- Added `vocabulary_usage_details` to store collocations, word-family links, common learner errors, separate US/UK IPA with source/license metadata, lexical source URL/license, and QA status. For the first four batches, all 397 accepted records have complete core fields and traceable lexical source metadata; 396 have pronunciation data (batch-level IPA coverage: 396/397). CEFR remains marked as a source estimate, not verified.
 - Re-audited **3,108 active topic entries** with a stricter semantic rule: at most one topic per entry, or no topic when the meaning is generic/ambiguous. **2,356** now have one active topic; **752** are intentionally unassigned; 9 additional low-quality entries remain excluded. The assignments are still AI-proposed, not human-approved.
 
 ## Sources and licenses
@@ -30,7 +31,7 @@ Source license files and a reusable importer source (import-vocabulary.txt; rena
 4. **Join IPA** on normalized spelling, keeping US and UK pronunciations in separate fields and recording provenance separately.
 5. **Stage the full source** in vocabulary_source_records using stable key (source_key, source_record_id). Use upsert so reruns are idempotent.
 6. **Promote candidates** into vocabulary_entries only as draft. The initial promotion selects alphabetic single-word entries with A1–B2 scores, excludes proper-noun POS tags, chooses one representative POS per spelling, and never overwrites an existing normalized term.
-7. **Enrich** missing definitions, Vietnamese meanings and examples in small batches. AI-generated senses are stored with source_status='draft'.
+7. **Enrich** missing definitions, Vietnamese meanings and examples in batches of 100, running two batches concurrently. Store collocations, word-family candidates and common learner errors in `vocabulary_usage_details`; keep US/UK IPA separate with source URLs/licenses. AI-generated senses stay `draft`; CEFR stays `source_estimate` until independently verified. Validate each batch and retry malformed records rather than filling missing values with guesses.
 8. **Classify topics** separately from enrichment. Store each decision in topic_classification_reviews with topics, model confidence, method, rationale and review_status='ai_proposed'. A confidence score is a model estimate, not a calibrated probability.
 9. **Rebuild topic links** from topic_classification_reviews, not from the legacy associations. The old mapping is preserved in topic_vocabulary_backup_20261011.
 10. **Validate** duplicates, IPA coverage, valid CEFR values, POS quality, topic relevance, license metadata and sample entries in every CEFR band. Promote to trusted/approved only after human review.

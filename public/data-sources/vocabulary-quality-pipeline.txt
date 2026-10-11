@@ -63,6 +63,7 @@ async function enrich() {
     FROM vocabulary_entries ve
     WHERE ve.source_name = 'Words-CEFR-Dataset (MIT; draft import)'
       AND ve.entry_type = 'word'
+      AND ve.source_status <> 'rejected'
       AND ve.cefr_level IN ('A1','A2','B1','B2')
       AND ve.part_of_speech IN ('noun','verb','adjective','adverb')
       AND (ve.definition_en IS NULL OR btrim(ve.definition_en) = '')

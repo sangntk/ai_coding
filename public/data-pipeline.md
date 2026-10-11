@@ -7,9 +7,9 @@ This is the handoff specification for reusing the pipeline in Vibe Flow or anoth
 - Imported **248,184 POS-specific records** from Words-CEFR-Dataset into vocabulary_source_records.
 - The records cover **172,782 distinct normalized terms**.
 - Merged IPA lookups into those records: US source has 125,927 entries; UK source has 65,119 entries.
-- Promoted **34,335 new A1–B2 single-word candidates** into vocabulary_entries as draft. They are not automatically attached to topics or treated as verified.
-- Existing vocabulary records were not overwritten during promotion. Existing topic associations were not rebuilt.
-- Definitions, Vietnamese translations, examples and topic labels are not supplied by the CEFR dataset; these fields must be sourced or generated and checked separately.
+- Promoted **34,335 new A1–B2 single-word candidates** into vocabulary_entries as draft. Existing vocabulary records were not overwritten during promotion.
+- Generated AI definitions, Vietnamese meanings and examples for 134 entries. A quality audit rejected 9 malformed or low-value candidates, leaving **125 enriched draft entries**; none are dictionary-verified.
+- Reclassified **3,117** entries for topic relevance using headword, definition and part of speech. **2,819** currently have one or more proposed topics; 298 are intentionally left without an active topic (including 9 excluded candidates). These are AI proposals and need sample human audit.
 
 ## Sources and licenses
 
@@ -30,10 +30,11 @@ Source license files and a reusable importer source (import-vocabulary.txt; rena
 4. **Join IPA** on normalized spelling, keeping US and UK pronunciations in separate fields and recording provenance separately.
 5. **Stage the full source** in vocabulary_source_records using stable key (source_key, source_record_id). Use upsert so reruns are idempotent.
 6. **Promote candidates** into vocabulary_entries only as draft. The initial promotion selects alphabetic single-word entries with A1–B2 scores, excludes proper-noun POS tags, chooses one representative POS per spelling, and never overwrites an existing normalized term.
-7. **Enrich** missing definition, Vietnamese meaning, example, and topic tags from permitted sources or AI-generated drafts. Keep provenance and verification status. Never claim AI-generated content is dictionary-verified.
-8. **Validate** duplicates, IPA coverage, valid CEFR values, POS quality, topic relevance, license metadata, and sample entries in every CEFR band.
-9. **Publish** only approved items to learning sessions. Draft candidates must not become visible merely because they were imported.
-10. **Monitor** import counts, source hashes, rejected rows, duplicate counts and errors on every run.
+7. **Enrich** missing definitions, Vietnamese meanings and examples in small batches. AI-generated senses are stored with source_status='draft'.
+8. **Classify topics** separately from enrichment. Store each decision in topic_classification_reviews with topics, model confidence, method, rationale and review_status='ai_proposed'. A confidence score is a model estimate, not a calibrated probability.
+9. **Rebuild topic links** from topic_classification_reviews, not from the legacy associations. The old mapping is preserved in topic_vocabulary_backup_20261011.
+10. **Validate** duplicates, IPA coverage, valid CEFR values, POS quality, topic relevance, license metadata and sample entries in every CEFR band. Promote to trusted/approved only after human review.
+11. **Monitor** import counts, source hashes, rejected rows, duplicate counts and errors on every run.
 
 ## CEFR score mapping used for the initial candidate view
 
@@ -44,9 +45,10 @@ The raw numeric score is retained in source_level_score. The initial derived lab
 - vocabulary_import_sources: source name, URL, license, attribution, snapshot label, import timestamp, record count, hash and notes.
 - vocabulary_source_records: raw/source-level POS records, source row ID, original term, normalized term, raw numeric level, derived CEFR label, frequency, US/UK IPA and separate IPA provenance.
 - vocabulary_entries: application vocabulary. Imported candidates are draft and have no generated definition/translation/example until enriched.
-- topic_vocabulary: curated topic links. Do not bulk-replace existing links until new classifications have full coverage and pass validation.
+- topic_vocabulary: active topic links rebuilt from topic_classification_reviews. AI-generated assignments are provisional; topic_classification_reviews is the audit trail and currently marks them ai_proposed.
+- topic_classification_reviews: one row per classified entry, with topics array, confidence, method, review status and rationale. Empty topics means no sufficiently strong topical fit was assigned.
 
-Schema migration: migrations/20261011_vocabulary_data_pipeline.sql. Reusable importer source: data-sources/import-vocabulary.txt (rename to import-vocabulary.mjs before running).
+Schema migrations: migrations/20261011_vocabulary_data_pipeline.sql and migrations/20261011_topic_mapping_cleanup.sql. Reusable sources: data-sources/import-vocabulary.txt (rename to import-vocabulary.mjs) and data-sources/vocabulary-quality-pipeline.txt (rename to vocabulary-quality-pipeline.mjs).
 
 ## Reuse in Vibe Flow
 
@@ -59,7 +61,8 @@ Schema migration: migrations/20261011_vocabulary_data_pipeline.sql. Reusable imp
 
 ## Known limitations / next steps
 
-- Full source import is complete, but definitions, Vietnamese meanings, examples and topic mapping are not yet populated for the 34,335 promoted candidates.
-- Existing topic mappings still need a separate repair. The source import intentionally did not overwrite them.
+- The original 34,335 draft candidates still require ongoing enrichment: 34,210 currently have no definition, Vietnamese meaning or example, including 9 candidates explicitly rejected from learning use. The current batch work retained 125 enriched entries, all still draft.
+- The active topic mapping was rebuilt from AI-proposed classifications for 3,117 entries. The old mapping remains in topic_vocabulary_backup_20261011 for rollback and comparison.
+- Topic assignments and generated translations/examples still require human sampling before they should be treated as verified.
 - Open English WordNet 2025 is recorded as a candidate source but is not ingested; the current graph should not be described as 2025-updated.
 - Review the GPL-3.0 implications of the UK IPA source before distributing a combined derivative dataset.

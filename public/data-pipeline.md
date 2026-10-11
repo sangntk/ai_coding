@@ -9,7 +9,7 @@ This is the handoff specification for reusing the pipeline in Vibe Flow or anoth
 - Merged IPA lookups into those records: US source has 125,927 entries; UK source has 65,119 entries.
 - Promoted **34,335 new A1–B2 single-word candidates** into vocabulary_entries as draft. Existing vocabulary records were not overwritten during promotion.
 - Generated AI definitions, Vietnamese meanings and examples for 134 entries. A quality audit rejected 9 malformed or low-value candidates, leaving **125 enriched draft entries**; none are dictionary-verified.
-- Reclassified **3,117** entries for topic relevance using headword, definition and part of speech. **2,819** currently have one or more proposed topics; 298 are intentionally left without an active topic (including 9 excluded candidates). These are AI proposals and need sample human audit.
+- Reclassified **3,117** entries for topic relevance using headword, definition and part of speech. **2,825** currently have one or more proposed topics; 283 are intentionally left without a topical assignment and 9 are excluded candidates. These are AI proposals and need sample human audit.
 
 ## Sources and licenses
 

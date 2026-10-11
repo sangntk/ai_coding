@@ -20,7 +20,7 @@
 - 248,184 upstream POS records imported; 172,782 distinct normalized terms in the source records.
 - 34,335 A1–B2 candidate entries were originally added as draft without definitions or topic links.
 - 134 entries received AI-generated definitions, Vietnamese meanings and examples; 9 malformed or low-value candidates were then marked rejected, leaving 125 enriched draft entries.
-- 3,117 topic classification review records exist; 2,819 have one or more proposed topic assignments, 289 have no strong topical fit, and 9 records are excluded.
+- 3,117 topic classification review records exist; 2,825 have one or more proposed topic assignments, 283 have no strong topical fit, and 9 records are excluded.
 - `topic_vocabulary` has been rebuilt from the classification review table, replacing the earlier noisy links. Existing pre-cleanup mappings are retained in `topic_vocabulary_backup_20261011`.
 - AI-generated data is provisional. The current import still has 34,201 entries without a definition, Vietnamese meaning or example and needs ongoing enrichment.
 

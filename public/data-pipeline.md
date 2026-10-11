@@ -9,7 +9,7 @@ This is the handoff specification for reusing the pipeline in Vibe Flow or anoth
 - Merged IPA lookups into those records: US source has 125,927 entries; UK source has 65,119 entries.
 - Promoted **34,335 new A1–B2 single-word candidates** into vocabulary_entries as draft. Existing vocabulary records were not overwritten during promotion.
 - Generated AI definitions, Vietnamese meanings and examples for 134 entries. A quality audit rejected 9 malformed or low-value candidates, leaving **125 enriched draft entries**; none are dictionary-verified.
-- Reclassified **3,117** entries for topic relevance using headword, definition and part of speech. **2,825** currently have one or more proposed topics; 283 are intentionally left without a topical assignment and 9 are excluded candidates. These are AI proposals and need sample human audit.
+- Re-audited **3,108 active topic entries** with a stricter semantic rule: at most one topic per entry, or no topic when the meaning is generic/ambiguous. **2,356** now have one active topic; **752** are intentionally unassigned; 9 additional low-quality entries remain excluded. The assignments are still AI-proposed, not human-approved.
 
 ## Sources and licenses
 
@@ -45,10 +45,11 @@ The raw numeric score is retained in source_level_score. The initial derived lab
 - vocabulary_import_sources: source name, URL, license, attribution, snapshot label, import timestamp, record count, hash and notes.
 - vocabulary_source_records: raw/source-level POS records, source row ID, original term, normalized term, raw numeric level, derived CEFR label, frequency, US/UK IPA and separate IPA provenance.
 - vocabulary_entries: application vocabulary. Imported candidates are draft and have no generated definition/translation/example until enriched.
-- topic_vocabulary: active topic links rebuilt from topic_classification_reviews. AI-generated assignments are provisional; topic_classification_reviews is the audit trail and currently marks them ai_proposed.
-- topic_classification_reviews: one row per classified entry, with topics array, confidence, method, review status and rationale. Empty topics means no sufficiently strong topical fit was assigned.
+- topic_vocabulary: active links currently have at most one topic per entry; links are rebuilt only for entries represented in topic_classification_reviews. Unreviewed curated/session-created links are preserved by the reusable pipeline.
+- topic_classification_reviews: one row per classified entry, with topics array, confidence, method, review status and rationale. Empty topics means no sufficiently strong topical fit was assigned; active assignments remain ai_proposed.
+- topic_classification_audit_v30: staged/applied strict-audit decisions, including the rationale for each assignment. topic_classification_reviews_backup_v30 preserves the review table as it was before the strict audit.
 
-Schema migrations: migrations/20261011_vocabulary_data_pipeline.sql and migrations/20261011_topic_mapping_cleanup.sql. Reusable sources: data-sources/import-vocabulary.txt (rename to import-vocabulary.mjs) and data-sources/vocabulary-quality-pipeline.txt (rename to vocabulary-quality-pipeline.mjs).
+Schema migrations: migrations/20261011_vocabulary_data_pipeline.sql, migrations/20261011_topic_mapping_cleanup.sql, and migrations/20261011_topic_strict_audit_v30.sql. Reusable sources: data-sources/import-vocabulary.txt (rename to import-vocabulary.mjs) and data-sources/vocabulary-quality-pipeline.txt (rename to vocabulary-quality-pipeline.mjs).
 
 ## Reuse in Vibe Flow
 
@@ -62,7 +63,7 @@ Schema migrations: migrations/20261011_vocabulary_data_pipeline.sql and migratio
 ## Known limitations / next steps
 
 - The original 34,335 draft candidates still require ongoing enrichment: 34,210 currently have no definition, Vietnamese meaning or example, including 9 candidates explicitly rejected from learning use. The current batch work retained 125 enriched entries, all still draft.
-- The active topic mapping was rebuilt from AI-proposed classifications for 3,117 entries. The old mapping remains in topic_vocabulary_backup_20261011 for rollback and comparison.
+- The strict audit has been applied to all 3,108 non-excluded review entries: 2,356 have one active topic and 752 are unassigned. Nine malformed/low-value entries are excluded. The pre-cleanup topic links remain in topic_vocabulary_backup_20261011; the pre-audit review records remain in topic_classification_reviews_backup_v30.
 - Topic assignments and generated translations/examples still require human sampling before they should be treated as verified.
 - Open English WordNet 2025 is recorded as a candidate source but is not ingested; the current graph should not be described as 2025-updated.
 - Review the GPL-3.0 implications of the UK IPA source before distributing a combined derivative dataset.

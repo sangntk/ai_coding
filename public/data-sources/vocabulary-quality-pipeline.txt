@@ -118,7 +118,7 @@ async function classify() {
   const candidates = rows.slice(0, batchSize);
   if (!candidates.length) return console.log("No entries need topic classification.");
   const items = await askJSON(
-    "You classify English vocabulary into learning topics. Return JSON only. Use only the supplied topic IDs. Assign zero to two strong semantic topics; generic words may have none. Do not infer a topic merely because a word could be used in that context. Treat the labels as AI proposals requiring human audit.",
+    "You classify English vocabulary into learning topics. Return JSON only. Use only the supplied topic IDs. Assign at most one strong semantic topic; generic, ambiguous, broad, or function words should have no topic. Do not infer a topic merely because a word could be used in that context. Treat the labels as AI proposals requiring human audit.",
     "Allowed topic IDs: " + topicIds.join(", ") + ". Return {items:[{id,topics,confidence}]}. Base each decision on definition and part of speech. Input: " + JSON.stringify(candidates)
   );
   const valid = [];
@@ -128,7 +128,7 @@ async function classify() {
     if (!item || !Array.isArray(item.topics)) continue;
     valid.push({
       id: row.id,
-      topics: [...new Set(item.topics.filter(topic => topicIds.includes(topic)))].slice(0, 2),
+      topics: [...new Set(item.topics.filter(topic => topicIds.includes(topic)))].slice(0, 1),
       confidence: Math.max(0, Math.min(1, Number(item.confidence) || 0))
     });
   }
@@ -140,13 +140,21 @@ async function classify() {
     FROM jsonb_to_recordset($1::jsonb) AS x(id text,topics text[],confidence numeric)
     ON CONFLICT(entry_id) DO NOTHING
   `, [JSON.stringify(valid)]);
+  // Rebuild only rows governed by the review table. Preserve direct/curated links
+  // for entries that have never been reviewed (e.g. words added by a learning session).
   await pool.query(`
-    WITH cleared AS (DELETE FROM topic_vocabulary RETURNING entry_id)
+    DELETE FROM topic_vocabulary
+    WHERE entry_id IN (SELECT entry_id FROM topic_classification_reviews)
+  `);
+  // Only reviewed entries are rebuilt. Keep topic links for entries that do not
+  // have a review row (for example, manually curated or session-generated terms).
+  await pool.query(`
     INSERT INTO topic_vocabulary(topic_id,entry_id,is_primary)
     SELECT topic_id,r.entry_id,ordinality=1
     FROM topic_classification_reviews r
     CROSS JOIN LATERAL unnest(r.topics) WITH ORDINALITY AS u(topic_id,ordinality)
     JOIN topics t ON t.id=topic_id
+    WHERE r.review_status <> 'excluded'
     ON CONFLICT(topic_id,entry_id) DO UPDATE SET is_primary=EXCLUDED.is_primary
   `);
   console.log(JSON.stringify({ selected: candidates.length, classified: valid.length, status: "ai_proposed", mappingRowsRebuilt: true }));

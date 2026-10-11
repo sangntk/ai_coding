@@ -1,0 +1,170 @@
+# Vocabulary quality pipeline (reusable on Hatchable or Vibe Flow)
+
+This script is designed to run outside the web request path. It enriches vocabulary in small, idempotent batches and keeps all AI-created content marked as draft.
+
+## Setup
+- Node.js 20+
+- PostgreSQL connection string in DATABASE_URL
+- OpenAI API key in OPENAI_API_KEY
+- Install dependency: npm install pg
+- Save this file as vocabulary-quality-pipeline.mjs (it is stored as .txt in public assets so it is not bundled/executed by the app).
+
+Run:
+- node vocabulary-quality-pipeline.mjs --enrich
+- node vocabulary-quality-pipeline.mjs --classify
+- Set BATCH_SIZE=30 (default) or a smaller number to limit each run.
+
+Never put DATABASE_URL or OPENAI_API_KEY in client-side code, a public repository, or a static asset.
+
+## Script
+
+import pg from "pg";
+
+const { Pool } = pg;
+const pool = new Pool({ connectionString: process.env.DATABASE_URL });
+const apiKey = process.env.OPENAI_API_KEY;
+const model = process.env.OPENAI_MODEL || "gpt-4o-mini";
+const batchSize = Math.max(1, Math.min(50, Number(process.env.BATCH_SIZE || 30)));
+const mode = process.argv[2] || "--enrich";
+const topicIds = [
+  "daily-life", "education-learning", "environment", "food-lifestyle",
+  "health-lifestyle", "ideas-opinions", "media-communication",
+  "money-shopping", "people-relationships", "personality-emotions",
+  "science-innovation", "society-community", "technology-ai", "travel",
+  "work-study"
+];
+const stopwords = new Set(("a an the and or but if as at by for from in into of on onto to with without not no nor so than too very this that these those who whom which what when where why how I you he she it we they me him her us them my your his its our their am is are was were be been being do does did have has had can could may might must shall should will would").split(/\s+/));
+
+if (!process.env.DATABASE_URL || !apiKey) {
+  throw new Error("Set DATABASE_URL and OPENAI_API_KEY in the server environment.");
+}
+
+async function askJSON(system, user, key = "items") {
+  const response = await fetch("https://api.openai.com/v1/chat/completions", {
+    method: "POST",
+    headers: { Authorization: `Bearer ${apiKey}`, "Content-Type": "application/json" },
+    body: JSON.stringify({
+      model,
+      temperature: 0.1,
+      response_format: { type: "json_object" },
+      messages: [{ role: "system", content: system }, { role: "user", content: user }]
+    })
+  });
+  if (!response.ok) throw new Error(`OpenAI request failed: ${response.status} ${await response.text()}`);
+  const payload = await response.json();
+  const parsed = JSON.parse(payload.choices?.[0]?.message?.content || "{}");
+  if (!Array.isArray(parsed[key])) throw new Error(`Expected JSON array at ${key}`);
+  return parsed[key];
+}
+
+async function enrich() {
+  const { rows } = await pool.query(`
+    SELECT ve.id::text AS id, ve.term, ve.cefr_level AS level, ve.part_of_speech AS pos
+    FROM vocabulary_entries ve
+    WHERE ve.source_name = 'Words-CEFR-Dataset (MIT; draft import)'
+      AND ve.entry_type = 'word'
+      AND ve.cefr_level IN ('A1','A2','B1','B2')
+      AND ve.part_of_speech IN ('noun','verb','adjective','adverb')
+      AND (ve.definition_en IS NULL OR btrim(ve.definition_en) = '')
+      AND ve.term ~ '^[A-Za-z][A-Za-z-]*$'
+      AND length(ve.term) >= 3
+    ORDER BY CASE ve.cefr_level WHEN 'A1' THEN 1 WHEN 'A2' THEN 2 WHEN 'B1' THEN 3 ELSE 4 END,
+      ve.term
+    LIMIT 500
+  `);
+  const candidates = rows.filter(row => !stopwords.has(row.term.toLowerCase())).slice(0, batchSize);
+  if (!candidates.length) return console.log("No eligible vocabulary entries.");
+  const items = await askJSON(
+    "You are an English lexicographer for Vietnamese learners. Return JSON only. Give a concise, accurate learner-friendly definition for the supplied headword and part of speech, a natural Vietnamese meaning, and one original short example. Do not invent extra senses.",
+    "Return {items:[{id,term,definition_en,meaning_vi,example}]}. Preserve id and term exactly. Definitions must match the supplied part of speech. Examples must clearly illustrate the meaning. Input: " + JSON.stringify(candidates)
+  );
+  const valid = [];
+  const byId = new Map(items.map(item => [String(item.id), item]));
+  for (const row of candidates) {
+    const item = byId.get(row.id);
+    if (!item || !item.definition_en?.trim() || !item.meaning_vi?.trim() || !item.example?.trim()) continue;
+    valid.push({ id: row.id, definition_en: item.definition_en.trim(), meaning_vi: item.meaning_vi.trim(), example: item.example.trim() });
+  }
+  if (!valid.length) throw new Error("AI returned no complete enrichment records.");
+  await pool.query(`
+    WITH enriched AS (
+      UPDATE vocabulary_entries ve
+      SET definition_en=x.definition_en, meaning_vi=x.meaning_vi, example=x.example, updated_at=now()
+      FROM jsonb_to_recordset($1::jsonb) AS x(id text,definition_en text,meaning_vi text,example text)
+      WHERE ve.id=x.id::uuid AND (ve.definition_en IS NULL OR btrim(ve.definition_en)='')
+      RETURNING ve.id,ve.definition_en,ve.meaning_vi,ve.cefr_level,ve.example
+    )
+    INSERT INTO vocabulary_senses(entry_id,sense_number,definition_en,meaning_vi,cefr_level,example,source_name,source_status)
+    SELECT id,1,definition_en,meaning_vi,cefr_level,example,'AI-generated enrichment','draft'
+    FROM enriched ON CONFLICT(entry_id,sense_number) DO NOTHING
+  `, [JSON.stringify(valid)]);
+  console.log(JSON.stringify({ selected: candidates.length, generated: items.length, submitted: valid.length, status: "draft" }));
+}
+
+async function classify() {
+  const { rows } = await pool.query(`
+    SELECT ve.id::text AS id,ve.term,COALESCE(ve.definition_en,'') AS definition,
+      COALESCE(ve.part_of_speech,'') AS pos,COALESCE(ve.cefr_level,'') AS level
+    FROM vocabulary_entries ve
+    LEFT JOIN topic_classification_reviews r ON r.entry_id=ve.id
+    WHERE r.entry_id IS NULL
+      AND ve.definition_en IS NOT NULL AND btrim(ve.definition_en)<>''
+      AND ve.entry_type='word'
+    ORDER BY CASE ve.cefr_level WHEN 'A1' THEN 1 WHEN 'A2' THEN 2 WHEN 'B1' THEN 3 WHEN 'B2' THEN 4 ELSE 5 END,
+      ve.term
+    LIMIT 500
+  `);
+  const candidates = rows.slice(0, batchSize);
+  if (!candidates.length) return console.log("No entries need topic classification.");
+  const items = await askJSON(
+    "You classify English vocabulary into learning topics. Return JSON only. Use only the supplied topic IDs. Assign zero to two strong semantic topics; generic words may have none. Do not infer a topic merely because a word could be used in that context. Treat the labels as AI proposals requiring human audit.",
+    "Allowed topic IDs: " + topicIds.join(", ") + ". Return {items:[{id,topics,confidence}]}. Base each decision on definition and part of speech. Input: " + JSON.stringify(candidates)
+  );
+  const valid = [];
+  const byId = new Map(items.map(item => [String(item.id), item]));
+  for (const row of candidates) {
+    const item = byId.get(row.id);
+    if (!item || !Array.isArray(item.topics)) continue;
+    valid.push({
+      id: row.id,
+      topics: [...new Set(item.topics.filter(topic => topicIds.includes(topic)))].slice(0, 2),
+      confidence: Math.max(0, Math.min(1, Number(item.confidence) || 0))
+    });
+  }
+  if (!valid.length) throw new Error("AI returned no usable topic records.");
+  await pool.query(`
+    INSERT INTO topic_classification_reviews(entry_id,topics,confidence,classification_method,review_status,rationale,updated_at)
+    SELECT x.id::uuid,x.topics,x.confidence,'AI topic classification','ai_proposed',
+      'AI proposal; sample human audit required',now()
+    FROM jsonb_to_recordset($1::jsonb) AS x(id text,topics text[],confidence numeric)
+    ON CONFLICT(entry_id) DO NOTHING
+  `, [JSON.stringify(valid)]);
+  await pool.query(`
+    WITH cleared AS (DELETE FROM topic_vocabulary RETURNING entry_id)
+    INSERT INTO topic_vocabulary(topic_id,entry_id,is_primary)
+    SELECT topic_id,r.entry_id,ordinality=1
+    FROM topic_classification_reviews r
+    CROSS JOIN LATERAL unnest(r.topics) WITH ORDINALITY AS u(topic_id,ordinality)
+    JOIN topics t ON t.id=topic_id
+    ON CONFLICT(topic_id,entry_id) DO UPDATE SET is_primary=EXCLUDED.is_primary
+  `);
+  console.log(JSON.stringify({ selected: candidates.length, classified: valid.length, status: "ai_proposed", mappingRowsRebuilt: true }));
+}
+
+try {
+  await pool.query(`
+    CREATE TABLE IF NOT EXISTS topic_classification_reviews (
+      entry_id uuid PRIMARY KEY, topics text[] NOT NULL DEFAULT '{}', confidence numeric,
+      classification_method text NOT NULL DEFAULT 'ai-suggested',
+      review_status text NOT NULL DEFAULT 'ai_proposed', rationale text,
+      updated_at timestamptz NOT NULL DEFAULT now()
+    )
+  `);
+  await pool.query("CREATE INDEX IF NOT EXISTS idx_topic_classification_review_status ON topic_classification_reviews(review_status,updated_at DESC)");
+  await pool.query("CREATE INDEX IF NOT EXISTS idx_topic_classification_topics ON topic_classification_reviews USING GIN(topics)");
+  if (mode === "--enrich") await enrich();
+  else if (mode === "--classify") await classify();
+  else throw new Error("Use --enrich or --classify.");
+} finally {
+  await pool.end();
+}

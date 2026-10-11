@@ -21,12 +21,15 @@ export default async function (req, res) {
       JOIN vocabulary_entries ve ON ve.id = tv.entry_id
       WHERE tv.topic_id = $1`, [topicId]),
     db.query(`SELECT ve.id, ve.term, ve.entry_type, ve.ipa, ve.part_of_speech,
-      ve.definition_en, ve.meaning_vi, ve.example, ve.cefr_level, ve.source_status
+      ve.definition_en, ve.meaning_vi, ve.example, ve.cefr_level, ve.source_status,
+      r.review_status AS mapping_status, r.confidence AS mapping_confidence
       FROM topic_vocabulary tv
       JOIN vocabulary_entries ve ON ve.id = tv.entry_id
+      LEFT JOIN topic_classification_reviews r ON r.entry_id = ve.id
       WHERE tv.topic_id = $1
-      ORDER BY CASE ve.cefr_level WHEN 'B2' THEN 0 WHEN 'B1' THEN 1 WHEN 'A2' THEN 2 WHEN 'A1' THEN 3 ELSE 4 END,
-        CASE ve.entry_type WHEN 'word' THEN 0 ELSE 1 END, ve.term
+      ORDER BY COALESCE(r.confidence, 0) DESC,
+        CASE ve.cefr_level WHEN 'A1' THEN 0 WHEN 'A2' THEN 1 WHEN 'B1' THEN 2 WHEN 'B2' THEN 3 ELSE 4 END,
+        CASE ve.entry_type WHEN 'word' THEN 0 ELSE 1 END, length(ve.term), ve.term
       LIMIT 12`, [topicId])
   ]);
   res.json({ topic, counts: counts[0] || { total_entries: 0, single_words: 0, expressions: 0, b1_count: 0, b2_count: 0 }, words });

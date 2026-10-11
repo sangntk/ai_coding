@@ -8,7 +8,7 @@ This is the handoff specification for reusing the pipeline in Vibe Flow or anoth
 - The records cover **172,782 distinct normalized terms**.
 - Merged IPA lookups into those records: US source has 125,927 entries; UK source has 65,119 entries.
 - Promoted **34,335 new A1–B2 single-word candidates** into vocabulary_entries as draft. Existing vocabulary records were not overwritten during promotion.
-- Generated AI definitions, Vietnamese meanings and examples for 134 entries. A quality audit rejected 9 malformed or low-value candidates, leaving **125 enriched draft entries**; none are dictionary-verified.
+- Generated AI definitions, Vietnamese meanings and examples for 164 entries over two batches; a quality audit rejected 9 malformed or low-value candidates, leaving **155 enriched draft entries**; none are dictionary-verified.
 - Re-audited **3,108 active topic entries** with a stricter semantic rule: at most one topic per entry, or no topic when the meaning is generic/ambiguous. **2,356** now have one active topic; **752** are intentionally unassigned; 9 additional low-quality entries remain excluded. The assignments are still AI-proposed, not human-approved.
 
 ## Sources and licenses
@@ -62,7 +62,7 @@ Schema migrations: migrations/20261011_vocabulary_data_pipeline.sql, migrations/
 
 ## Known limitations / next steps
 
-- The original 34,335 draft candidates still require ongoing enrichment: 34,210 currently have no definition, Vietnamese meaning or example, including 9 candidates explicitly rejected from learning use. The current batch work retained 125 enriched entries, all still draft.
+- The original 34,335 draft candidates still require ongoing enrichment: 34,180 currently have no definition, Vietnamese meaning or example, including 9 candidates explicitly rejected from learning use. The current batch work retained 155 enriched entries, all still draft.
 - The strict audit has been applied to all 3,108 non-excluded review entries: 2,356 have one active topic and 752 are unassigned. Nine malformed/low-value entries are excluded. The pre-cleanup topic links remain in topic_vocabulary_backup_20261011; the pre-audit review records remain in topic_classification_reviews_backup_v30.
 - Topic assignments and generated translations/examples still require human sampling before they should be treated as verified.
 - Open English WordNet 2025 is recorded as a candidate source but is not ingested; the current graph should not be described as 2025-updated.

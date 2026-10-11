@@ -19,10 +19,10 @@
 ## Current snapshot (2026-10-11)
 - 248,184 upstream POS records imported; 172,782 distinct normalized terms in the source records.
 - 34,335 A1–B2 candidate entries were originally added as draft without definitions or topic links.
-- 134 entries received AI-generated definitions, Vietnamese meanings and examples; 9 malformed or low-value candidates were then marked rejected, leaving 125 enriched draft entries.
+- 164 entries received AI-generated definitions, Vietnamese meanings and examples; 9 malformed or low-value candidates were then marked rejected, leaving 155 enriched draft entries.
 - 3,117 review records exist: 3,108 active entries received a strict audit, with 2,356 assigned one topic and 752 left unassigned; 9 low-quality entries are excluded.
 - `topic_vocabulary` now has 2,356 links (one topic per linked entry). Pre-cleanup links are retained in `topic_vocabulary_backup_20261011`; pre-audit review records are retained in `topic_classification_reviews_backup_v30`.
-- AI-generated data is provisional. The current import still has 34,210 entries without a definition, Vietnamese meaning or example (including 9 rejected entries) and needs ongoing enrichment. The 125 retained enriched entries remain drafts.
+- AI-generated data is provisional. The current import still has 34,180 entries without a definition, Vietnamese meaning or example (including 9 rejected entries) and needs ongoing enrichment. The 155 retained enriched entries remain drafts.
 
 ## Reuse on Vibe Flow
 Apply `migrations/20261011_topic_mapping_cleanup.sql`, configure secrets server-side, import source records, and run the quality pipeline with a small `BATCH_SIZE`. Keep the script outside client bundles. The current app uses Hatchable's managed AI service; the portable script uses the OpenAI API directly, so Vibe Flow can run it in a scheduled worker or secure server-side job.

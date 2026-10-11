@@ -1,0 +1,96 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="robots" content="noindex,nofollow">
+<title>Sign in · English Learning Assistant</title>
+<style>
+:root{--ink:#29382d;--muted:#737b6d;--line:#e2e6dc;--paper:#fbfaf6;--card:#fffefa;--sage:#e9efe2;--brand:#29382d;--danger:#a74332}
+*{box-sizing:border-box}
+body{min-height:100vh;margin:0;padding:24px;display:flex;align-items:center;justify-content:center;background:radial-gradient(ellipse at top left,#edf2e7 0,transparent 48%),var(--paper);font-family:Inter,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;color:var(--ink)}
+main{width:100%;max-width:420px;background:var(--card);border:1px solid var(--line);border-radius:24px;padding:36px;box-shadow:0 18px 55px rgba(41,56,45,.07)}
+.mark{width:48px;height:48px;border-radius:16px;display:grid;place-items:center;background:var(--sage);font-size:23px;margin-bottom:24px}
+.eyebrow{font-size:10px;letter-spacing:.16em;font-weight:800;color:#73845f;text-transform:uppercase}
+h1{font-size:28px;letter-spacing:-.04em;margin:9px 0 10px}
+.sub{font-size:14px;line-height:1.65;color:var(--muted);margin:0 0 26px}
+label{display:block;font-size:12px;font-weight:700;margin:0 0 8px}
+input,button{width:100%;height:48px;border-radius:11px;font:inherit}
+input{border:1px solid #d9dfd2;background:white;padding:0 14px;color:var(--ink);outline:none}
+input:focus{border-color:#83976c;box-shadow:0 0 0 3px rgba(131,151,108,.14)}
+button{margin-top:12px;border:0;background:var(--brand);color:white;font-size:13px;font-weight:750;cursor:pointer}
+button:disabled{opacity:.55;cursor:wait}
+button.secondary{background:transparent;color:var(--muted);border:1px solid var(--line)}
+.msg{font-size:12px;line-height:1.55;min-height:18px;margin:14px 0 0;color:var(--muted)}
+.msg.err{color:var(--danger)}
+.privacy{border-top:1px solid var(--line);margin-top:24px;padding-top:17px;font-size:11px;line-height:1.6;color:var(--muted)}
+[hidden]{display:none!important}
+@media(max-width:480px){main{padding:27px 22px;border-radius:20px}}
+</style>
+</head>
+<body>
+<main>
+  <div class="mark" aria-hidden="true">✦</div>
+  <span class="eyebrow">Your personal English coach</span>
+  <h1 id="title">Welcome back</h1>
+  <p class="sub" id="sub">Sign in with your email. We'll send you a one-time code — no password needed.</p>
+  <form id="form" novalidate>
+    <div id="email-row">
+      <label for="email">Email address</label>
+      <input id="email" name="email" type="email" placeholder="you@example.com" autocomplete="username webauthn" autocapitalize="off" autocorrect="off" spellcheck="false" required>
+    </div>
+    <div id="code-row" hidden>
+      <label for="code">Six-digit code</label>
+      <input id="code" name="code" type="text" inputmode="numeric" placeholder="000000" autocomplete="one-time-code" maxlength="6" pattern="[0-9]*">
+    </div>
+    <button id="submit" type="submit">Send sign-in code</button>
+    <button id="back" class="secondary" type="button" hidden>Use a different email</button>
+  </form>
+  <section id="passkey" hidden>
+    <button id="passkey-add" type="button">Add a passkey</button>
+    <button id="passkey-skip" class="secondary" type="button">Not now</button>
+  </section>
+  <p class="msg" id="msg" role="status" aria-live="polite"></p>
+  <div class="privacy">Your learning sessions, vocabulary progress, and journal are private to your account.</div>
+</main>
+<script>
+(function(){
+  var A=window.hatchable&&window.hatchable.auth;
+  var form=document.getElementById('form'),emailRow=document.getElementById('email-row'),codeRow=document.getElementById('code-row');
+  var emailEl=document.getElementById('email'),codeEl=document.getElementById('code'),submit=document.getElementById('submit'),back=document.getElementById('back');
+  var msg=document.getElementById('msg'),sub=document.getElementById('sub'),title=document.getElementById('title'),passkey=document.getElementById('passkey');
+  var passkeyAdd=document.getElementById('passkey-add'),passkeySkip=document.getElementById('passkey-skip');
+  var step='email',hasPasskey=false,declineKey='english-assistant-passkey-declined';
+  function safeNext(){var raw=new URLSearchParams(location.search).get('next')||'/';return typeof raw==='string'&&raw.charAt(0)==='/'&&raw.indexOf('//')!==0?raw:'/';}
+  function done(){location.replace(safeNext());}
+  function say(text,kind){msg.textContent=text||'';msg.className='msg '+(kind||'');}
+  function declined(){try{return localStorage.getItem(declineKey)==='1';}catch(e){return false;}}
+  function finish(){if(hasPasskey||declined()||!A.registerPasskey||!A.supportsPasskeys||!A.supportsPasskeys()){done();return;}
+    step='passkey';form.hidden=true;title.textContent="You're signed in";sub.textContent='Add a passkey to sign in next time with your fingerprint, face, or screen lock.';say('');passkey.hidden=false;passkeyAdd.focus();}
+  if(!A){say('Sign-in is unavailable right now. Refresh the page and try again.','err');submit.disabled=true;return;}
+  A.getSession().then(function(s){if(s&&s.user)done();}).catch(function(){});
+  if(A.attachPasskeyAutofill){try{A.attachPasskeyAutofill(emailEl).then(function(r){if(r&&r.user)done();}).catch(function(){});}catch(e){}}
+  back.addEventListener('click',function(){step='email';codeRow.hidden=true;emailRow.hidden=false;back.hidden=true;submit.textContent='Send sign-in code';sub.textContent="Sign in with your email. We'll send you a one-time code — no password needed.";say('');emailEl.focus();});
+  form.addEventListener('submit',function(e){e.preventDefault();submit.disabled=true;
+    if(step==='email'){
+      var email=(emailEl.value||'').trim();if(!email){submit.disabled=false;say('Enter your email address.','err');return;}
+      A.startLogin({email:email}).then(function(r){hasPasskey=!!(r&&r.has_passkey);
+        if(hasPasskey&&A.supportsPasskeys&&A.supportsPasskeys()&&A.signInWithPasskey){return A.signInWithPasskey({email:email}).then(function(d){if(d&&d.user){done();return null;}return 'code';}).catch(function(){return 'code';});}
+        return 'code';
+      }).then(function(next){if(next!=='code')return;step='code';emailRow.hidden=true;codeRow.hidden=false;back.hidden=false;submit.textContent='Verify and sign in';sub.textContent='Enter the code sent to '+email+'.';say('Code sent. It expires in 10 minutes.');codeEl.focus();})
+      .catch(function(err){say(err&&err.status===429?'Too many attempts. Please wait a moment.':((err&&err.message)||'Could not send the code. Check your email address and try again.'),'err');})
+      .then(function(){submit.disabled=false;});return;
+    }
+    A.verifyCode({email:(emailEl.value||'').trim(),code:(codeEl.value||'').trim()}).then(function(d){if(d&&d.user){finish();return;}say('That code did not work. Please try again.','err');})
+    .catch(function(err){say((err&&err.message)||'That code did not work. Please try again.','err');}).then(function(){submit.disabled=false;});
+  });
+  passkeyAdd.addEventListener('click',function(){passkeyAdd.disabled=true;passkeySkip.disabled=true;say('');
+    A.registerPasskey().then(function(r){if(!r){try{localStorage.setItem(declineKey,'1');}catch(e){}}done();})
+    .catch(function(err){passkeyAdd.disabled=false;passkeySkip.disabled=false;say((err&&err.message)||'Could not save the passkey. You can continue without one.','err');});
+  });
+  passkeySkip.addEventListener('click',function(){try{localStorage.setItem(declineKey,'1');}catch(e){}done();});
+  emailEl.focus();
+})();
+</script>
+</body>
+</html>
